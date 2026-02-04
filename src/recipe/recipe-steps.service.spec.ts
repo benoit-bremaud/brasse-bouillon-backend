@@ -1,0 +1,116 @@
+jest.setTimeout(20000);
+
+import { Test, TestingModule } from '@nestjs/testing';
+import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
+import { randomUUID } from 'crypto';
+import { Repository } from 'typeorm';
+
+import { RecipeStepType } from './domain/enums/recipe-step-type.enum';
+import { RecipeVisibility } from './domain/enums/recipe-visibility.enum';
+import { RecipeOrmEntity } from './entities/recipe.orm.entity';
+import { RecipeStepOrmEntity } from './entities/recipe-step.orm.entity';
+import { RecipeService } from './services/recipe.service';
+
+describe('RecipeService (steps)', () => {
+  let module: TestingModule;
+  let service: RecipeService;
+  let recipeRepo: Repository<RecipeOrmEntity>;
+  let stepRepo: Repository<RecipeStepOrmEntity>;
+
+  beforeAll(async () => {
+    module = await Test.createTestingModule({
+      imports: [
+        TypeOrmModule.forRoot({
+          type: 'sqlite',
+          database: ':memory:',
+          entities: [RecipeOrmEntity, RecipeStepOrmEntity],
+          synchronize: true,
+          logging: false,
+        }),
+        TypeOrmModule.forFeature([RecipeOrmEntity, RecipeStepOrmEntity]),
+      ],
+      providers: [RecipeService],
+    }).compile();
+
+    service = module.get(RecipeService);
+    recipeRepo = module.get(getRepositoryToken(RecipeOrmEntity));
+    stepRepo = module.get(getRepositoryToken(RecipeStepOrmEntity));
+  });
+
+  afterAll(async () => {
+    await module.close();
+  });
+
+  beforeEach(async () => {
+    await stepRepo.clear();
+    await recipeRepo.clear();
+  });
+
+  it('create() should persist the default workflow steps', async () => {
+    const ownerId = 'user-1';
+    const recipe = await service.create(ownerId, { name: 'My IPA' });
+
+    const steps = await stepRepo.find({
+      where: { recipe_id: recipe.id },
+      order: { step_order: 'ASC' },
+    });
+
+    expect(steps).toHaveLength(5);
+    expect(steps.map((s) => s.step_order)).toEqual([0, 1, 2, 3, 4]);
+    expect(steps.map((s) => s.type)).toEqual<RecipeStepType[]>([
+      RecipeStepType.MASH,
+      RecipeStepType.BOIL,
+      RecipeStepType.WHIRLPOOL,
+      RecipeStepType.FERMENTATION,
+      RecipeStepType.PACKAGING,
+    ]);
+  });
+
+  it('listMineSteps() should lazy-backfill default steps for legacy recipes', async () => {
+    const ownerId = 'user-1';
+    const recipeId = randomUUID();
+
+    await recipeRepo.save(
+      recipeRepo.create({
+        id: recipeId,
+        owner_id: ownerId,
+        name: 'Legacy recipe',
+        description: null,
+        visibility: RecipeVisibility.PRIVATE,
+        version: 1,
+        root_recipe_id: recipeId,
+        parent_recipe_id: null,
+      }),
+    );
+
+    expect(await stepRepo.count({ where: { recipe_id: recipeId } })).toBe(0);
+
+    const first = await service.listMineSteps(ownerId, recipeId);
+    expect(first).toHaveLength(5);
+
+    const second = await service.listMineSteps(ownerId, recipeId);
+    expect(second).toHaveLength(5);
+
+    expect(await stepRepo.count({ where: { recipe_id: recipeId } })).toBe(5);
+  });
+
+  it('updateMineStep() should update step label/description', async () => {
+    const ownerId = 'user-1';
+    const recipe = await service.create(ownerId, { name: 'My IPA' });
+
+    const saved = await service.updateMineStep(ownerId, recipe.id, 0, {
+      label: 'Mash (updated)',
+      description: null,
+    });
+
+    expect(saved.step_order).toBe(0);
+    expect(saved.label).toBe('Mash (updated)');
+    expect(saved.description).toBeNull();
+
+    const fromDb = await stepRepo.findOne({
+      where: { recipe_id: recipe.id, step_order: 0 },
+    });
+    expect(fromDb?.label).toBe('Mash (updated)');
+    expect(fromDb?.description).toBeNull();
+  });
+});
