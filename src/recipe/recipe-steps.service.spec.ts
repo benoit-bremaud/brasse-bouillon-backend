@@ -1,5 +1,6 @@
 jest.setTimeout(20000);
 
+import { BadRequestException, NotFoundException } from '@nestjs/common';
 import { Test, TestingModule } from '@nestjs/testing';
 import { getRepositoryToken, TypeOrmModule } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
@@ -112,5 +113,32 @@ describe('RecipeService (steps)', () => {
     });
     expect(fromDb?.label).toBe('Mash (updated)');
     expect(fromDb?.description).toBeNull();
+  });
+
+  it('updateMineStep() should reject negative order values', async () => {
+    const ownerId = 'user-1';
+    const recipe = await service.create(ownerId, { name: 'My IPA' });
+
+    await expect(
+      service.updateMineStep(ownerId, recipe.id, -1, { label: 'Invalid' }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('updateMineStep() should reject non-integer order values', async () => {
+    const ownerId = 'user-1';
+    const recipe = await service.create(ownerId, { name: 'My IPA' });
+
+    await expect(
+      service.updateMineStep(ownerId, recipe.id, 1.5, { label: 'Invalid' }),
+    ).rejects.toThrow(BadRequestException);
+  });
+
+  it('updateMineStep() should throw when step order does not exist', async () => {
+    const ownerId = 'user-1';
+    const recipe = await service.create(ownerId, { name: 'My IPA' });
+
+    await expect(
+      service.updateMineStep(ownerId, recipe.id, 99, { label: 'Nope' }),
+    ).rejects.toThrow(NotFoundException);
   });
 });
