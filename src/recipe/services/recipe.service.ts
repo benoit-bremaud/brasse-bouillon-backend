@@ -5,7 +5,7 @@ import {
 } from '@nestjs/common';
 import { InjectRepository } from '@nestjs/typeorm';
 import { randomUUID } from 'crypto';
-import { EntityManager, Repository } from 'typeorm';
+import { EntityManager, QueryFailedError, Repository } from 'typeorm';
 
 import { RecipeDomainService } from '../domain/services/recipe-domain.service';
 import { RecipeWorkflowService } from '../domain/services/recipe-workflow.service';
@@ -181,8 +181,34 @@ export class RecipeService {
 
     try {
       await stepsRepo.save(defaults);
-    } catch {
-      // If concurrent calls created steps at the same time, simply re-fetch.
+    } catch (error) {
+      if (error instanceof QueryFailedError) {
+        const driverError = error.driverError as {
+          code?: string | number;
+          message?: string;
+        };
+        const code =
+          typeof driverError.code === 'string'
+            ? driverError.code
+            : typeof driverError.code === 'number'
+              ? String(driverError.code)
+              : '';
+        const message = driverError.message ?? error.message;
+
+        const isUniqueViolation =
+          code === '23505' ||
+          code === 'ER_DUP_ENTRY' ||
+          code === 'SQLITE_CONSTRAINT_PRIMARYKEY' ||
+          code === 'SQLITE_CONSTRAINT_UNIQUE' ||
+          message.toLowerCase().includes('unique constraint failed');
+
+        // If concurrent calls created steps at the same time, simply re-fetch.
+        if (!isUniqueViolation) {
+          throw error;
+        }
+      } else {
+        throw error;
+      }
     }
 
     return stepsRepo.find({
