@@ -137,4 +137,76 @@ describe('BatchDomainService', () => {
       }),
     ).toThrow('Step orders must start at 0 and be continuous');
   });
+
+  it('should reject empty steps array', () => {
+    const service = new BatchDomainService(
+      () => new Date('2026-02-05T09:00:00.000Z'),
+    );
+
+    expect(() =>
+      service.startBatch({
+        id: 'batch-1',
+        ownerId: 'user-1',
+        recipeId: 'recipe-1',
+        steps: [],
+      }),
+    ).toThrow('Batch must include at least one step');
+  });
+
+  it('should reject invalid step orders (negative and non-integer)', () => {
+    const service = new BatchDomainService(
+      () => new Date('2026-02-05T09:00:00.000Z'),
+    );
+
+    expect(() =>
+      service.startBatch({
+        id: 'batch-1',
+        ownerId: 'user-1',
+        recipeId: 'recipe-1',
+        steps: [{ order: -1, type: RecipeStepType.MASH, label: 'Mash' }],
+      }),
+    ).toThrow('Step order must be a non-negative integer');
+
+    expect(() =>
+      service.startBatch({
+        id: 'batch-1',
+        ownerId: 'user-1',
+        recipeId: 'recipe-1',
+        steps: [{ order: 0.5, type: RecipeStepType.MASH, label: 'Mash' }],
+      }),
+    ).toThrow('Step order must be a non-negative integer');
+  });
+
+  it('should reject duplicate step orders', () => {
+    const service = new BatchDomainService(
+      () => new Date('2026-02-05T09:00:00.000Z'),
+    );
+
+    expect(() =>
+      service.startBatch({
+        id: 'batch-1',
+        ownerId: 'user-1',
+        recipeId: 'recipe-1',
+        steps: [
+          { order: 0, type: RecipeStepType.MASH, label: 'Mash' },
+          { order: 0, type: RecipeStepType.BOIL, label: 'Boil' },
+        ],
+      }),
+    ).toThrow('Step orders must be unique');
+  });
+
+  it('should reject empty step labels', () => {
+    const service = new BatchDomainService(
+      () => new Date('2026-02-05T09:00:00.000Z'),
+    );
+
+    expect(() =>
+      service.startBatch({
+        id: 'batch-1',
+        ownerId: 'user-1',
+        recipeId: 'recipe-1',
+        steps: [{ order: 0, type: RecipeStepType.MASH, label: '   ' }],
+      }),
+    ).toThrow('Step label must not be empty');
+  });
 });
