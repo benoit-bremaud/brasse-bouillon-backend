@@ -93,11 +93,22 @@ export class RecipeService {
   }
 
   async deleteMine(ownerId: string, id: string): Promise<{ deleted: true }> {
-    const result = await this.repo.delete({ id, owner_id: ownerId });
-    if (!result.affected) {
-      throw new NotFoundException('Recipe not found');
-    }
-    return { deleted: true };
+    return this.repo.manager.transaction(async (manager) => {
+      const recipeRepo = manager.getRepository(RecipeOrmEntity);
+      const stepsRepo = manager.getRepository(RecipeStepOrmEntity);
+
+      const recipe = await recipeRepo.findOne({
+        where: { id, owner_id: ownerId },
+      });
+      if (!recipe) {
+        throw new NotFoundException('Recipe not found');
+      }
+
+      await stepsRepo.delete({ recipe_id: id });
+      await recipeRepo.delete({ id, owner_id: ownerId });
+
+      return { deleted: true };
+    });
   }
 
   async listMineSteps(

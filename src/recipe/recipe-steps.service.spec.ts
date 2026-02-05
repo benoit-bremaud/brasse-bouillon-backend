@@ -115,6 +115,33 @@ describe('RecipeService (steps)', () => {
     expect(fromDb?.description).toBeNull();
   });
 
+  it("listMineSteps() should not allow other users' recipes", async () => {
+    const recipe = await service.create('owner-1', { name: 'My IPA' });
+
+    await expect(service.listMineSteps('owner-2', recipe.id)).rejects.toThrow(
+      NotFoundException,
+    );
+  });
+
+  it("updateMineStep() should not allow other users' recipes", async () => {
+    const recipe = await service.create('owner-1', { name: 'My IPA' });
+
+    await expect(
+      service.updateMineStep('owner-2', recipe.id, 0, { label: 'Hack' }),
+    ).rejects.toThrow(NotFoundException);
+  });
+
+  it('deleteMine() should delete associated steps', async () => {
+    const ownerId = 'user-1';
+    const recipe = await service.create(ownerId, { name: 'My IPA' });
+
+    expect(await stepRepo.count({ where: { recipe_id: recipe.id } })).toBe(5);
+
+    await service.deleteMine(ownerId, recipe.id);
+
+    expect(await stepRepo.count({ where: { recipe_id: recipe.id } })).toBe(0);
+  });
+
   it('updateMineStep() should reject negative order values', async () => {
     const ownerId = 'user-1';
     const recipe = await service.create(ownerId, { name: 'My IPA' });
