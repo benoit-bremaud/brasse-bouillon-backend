@@ -1,11 +1,14 @@
-import { AuthService } from './auth.service';
-import { JwtService } from '@nestjs/jwt';
-import { LoginDto } from '../dtos/login.dto';
-import { PasswordService } from './password.service';
 import { UnauthorizedException } from '@nestjs/common';
-import { User } from '../../user/entities/user.entity';
+import { JwtService } from '@nestjs/jwt';
 import { UserRole } from '../../common/enums/role.enum';
+import { User } from '../../user/entities/user.entity';
 import { UserService } from '../../user/services/user.service';
+import { LoginDto } from '../dtos/login.dto';
+import { AuthService } from './auth.service';
+import { PasswordService } from './password.service';
+
+const RESET_REQUEST_GENERIC_MESSAGE =
+  'If an account exists for this email, a reset link has been sent.';
 
 describe('AuthService', () => {
   let service: AuthService;
@@ -241,6 +244,56 @@ describe('AuthService', () => {
         wrongPassword,
         user.password_hash,
       );
+    });
+  });
+
+  describe('requestPasswordReset()', () => {
+    it('should return a generic success message when user exists and is active', async () => {
+      const user = makeUser({ email: 'active@example.com', is_active: true });
+
+      const findByEmailSpy = jest
+        .spyOn(userService, 'findByEmail')
+        .mockResolvedValue(user);
+
+      const result = await service.requestPasswordReset(user.email);
+
+      expect(findByEmailSpy).toHaveBeenCalledWith(user.email);
+      expect(result).toEqual({
+        message: RESET_REQUEST_GENERIC_MESSAGE,
+      });
+    });
+
+    it('should return the same generic success message when user does not exist', async () => {
+      const email = 'unknown@example.com';
+
+      const findByEmailSpy = jest
+        .spyOn(userService, 'findByEmail')
+        .mockResolvedValue(null);
+
+      const result = await service.requestPasswordReset(email);
+
+      expect(findByEmailSpy).toHaveBeenCalledWith(email);
+      expect(result).toEqual({
+        message: RESET_REQUEST_GENERIC_MESSAGE,
+      });
+    });
+
+    it('should return the same generic success message when user is inactive', async () => {
+      const user = makeUser({
+        email: 'inactive@example.com',
+        is_active: false,
+      });
+
+      const findByEmailSpy = jest
+        .spyOn(userService, 'findByEmail')
+        .mockResolvedValue(user);
+
+      const result = await service.requestPasswordReset(user.email);
+
+      expect(findByEmailSpy).toHaveBeenCalledWith(user.email);
+      expect(result).toEqual({
+        message: RESET_REQUEST_GENERIC_MESSAGE,
+      });
     });
   });
 });

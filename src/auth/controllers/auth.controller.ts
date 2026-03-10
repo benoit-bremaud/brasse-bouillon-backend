@@ -1,41 +1,43 @@
 import {
-  Controller,
-  Post,
   Body,
+  Controller,
+  Delete,
+  Get,
   HttpCode,
   HttpStatus,
-  Get,
   Patch,
-  Delete,
+  Post,
   UseGuards,
   ValidationPipe,
 } from '@nestjs/common';
 import {
+  ApiBadRequestResponse,
+  ApiBearerAuth,
+  ApiBody,
   ApiOperation,
   ApiResponse,
   ApiTags,
-  ApiBody,
-  ApiBadRequestResponse,
-  ApiUnauthorizedResponse,
-  ApiBearerAuth,
   ApiTooManyRequestsResponse,
+  ApiUnauthorizedResponse,
 } from '@nestjs/swagger';
 import { Throttle, ThrottlerGuard } from '@nestjs/throttler';
 import { plainToInstance } from 'class-transformer';
 
-import { AuthService } from '../services/auth.service';
-import { LoginDto } from '../dtos/login.dto';
-import { AuthResponseDto } from '../dtos/auth-response.dto';
-import { ChangePasswordDto } from '../dtos/change-password.dto';
-import { ChangePasswordResponseDto } from '../dtos/change-password-response.dto';
-import { JwtAuthGuard } from '../guards/jwt.guard';
 import { CurrentUser } from '../decorators/current-user.decorator';
+import { AuthResponseDto } from '../dtos/auth-response.dto';
+import { ChangePasswordResponseDto } from '../dtos/change-password-response.dto';
+import { ChangePasswordDto } from '../dtos/change-password.dto';
+import { ForgotPasswordResponseDto } from '../dtos/forgot-password-response.dto';
+import { ForgotPasswordDto } from '../dtos/forgot-password.dto';
+import { LoginDto } from '../dtos/login.dto';
+import { JwtAuthGuard } from '../guards/jwt.guard';
+import { AuthService } from '../services/auth.service';
 
 import { CreateUserDto } from '../../user/dtos/create-user.dto';
 import { UpdateUserDto } from '../../user/dtos/update-user.dto';
 import { UserResponseDto } from '../../user/dtos/user.response.dto';
-import { UserService } from '../../user/services/user.service';
 import { User } from '../../user/entities/user.entity';
+import { UserService } from '../../user/services/user.service';
 
 @ApiTags('Authentication')
 @Controller('auth')
@@ -86,6 +88,28 @@ export class AuthController {
       email: createUserDto.email,
       password: createUserDto.password,
     });
+  }
+
+  @Post('forgot-password')
+  @HttpCode(HttpStatus.OK)
+  @UseGuards(ThrottlerGuard)
+  @ApiOperation({
+    summary: 'Request password reset',
+    description:
+      'Returns a generic message to avoid disclosing whether an email exists',
+  })
+  @ApiBody({ type: ForgotPasswordDto })
+  @ApiResponse({ status: 200, type: ForgotPasswordResponseDto })
+  @ApiBadRequestResponse({ description: 'Validation failed' })
+  @ApiTooManyRequestsResponse({
+    description: 'Too many password reset requests',
+  })
+  @Throttle({ default: { limit: 5, ttl: 60_000 } })
+  async forgotPassword(
+    @Body(new ValidationPipe({ transform: true, whitelist: true }))
+    forgotPasswordDto: ForgotPasswordDto,
+  ): Promise<ForgotPasswordResponseDto> {
+    return this.authService.requestPasswordReset(forgotPasswordDto.email);
   }
 
   @Get('me')
