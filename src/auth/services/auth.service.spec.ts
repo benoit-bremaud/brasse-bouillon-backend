@@ -1,13 +1,13 @@
-import { AuthService } from './auth.service';
-import { JwtService } from '@nestjs/jwt';
-import { LoginDto } from '../dtos/login.dto';
-import { PasswordService } from './password.service';
 import { UnauthorizedException } from '@nestjs/common';
-import { User } from '../../user/entities/user.entity';
+import { JwtService } from '@nestjs/jwt';
 import { UserRole } from '../../common/enums/role.enum';
+import { User } from '../../user/entities/user.entity';
 import { UserService } from '../../user/services/user.service';
+import { LoginDto } from '../dtos/login.dto';
+import { AuthService } from './auth.service';
+import { PasswordService } from './password.service';
 
-const FORGOT_PASSWORD_GENERIC_MESSAGE =
+const RESET_REQUEST_GENERIC_MESSAGE =
   'If an account exists for this email, a reset link has been sent.';
 
 describe('AuthService', () => {
@@ -259,7 +259,7 @@ describe('AuthService', () => {
 
       expect(findByEmailSpy).toHaveBeenCalledWith(user.email);
       expect(result).toEqual({
-        message: FORGOT_PASSWORD_GENERIC_MESSAGE,
+        message: RESET_REQUEST_GENERIC_MESSAGE,
       });
     });
 
@@ -274,7 +274,7 @@ describe('AuthService', () => {
 
       expect(findByEmailSpy).toHaveBeenCalledWith(email);
       expect(result).toEqual({
-        message: FORGOT_PASSWORD_GENERIC_MESSAGE,
+        message: RESET_REQUEST_GENERIC_MESSAGE,
       });
     });
 
@@ -292,7 +292,7 @@ describe('AuthService', () => {
 
       expect(findByEmailSpy).toHaveBeenCalledWith(user.email);
       expect(result).toEqual({
-        message: FORGOT_PASSWORD_GENERIC_MESSAGE,
+        message: RESET_REQUEST_GENERIC_MESSAGE,
       });
     });
   });

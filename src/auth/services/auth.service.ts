@@ -7,7 +7,7 @@ import { ForgotPasswordResponseDto } from '../dtos/forgot-password-response.dto'
 import { LoginDto } from '../dtos/login.dto';
 import { PasswordService } from './password.service';
 
-const FORGOT_PASSWORD_GENERIC_MESSAGE =
+const RESET_REQUEST_GENERIC_MESSAGE =
   'If an account exists for this email, a reset link has been sent.';
 
 /**
@@ -157,12 +157,8 @@ export class AuthService {
   async requestPasswordReset(
     email: string,
   ): Promise<ForgotPasswordResponseDto> {
-    const user = await this.userService.findByEmail(email);
+    await this.userService.findByEmail(email);
 
-    if (user && user.is_active) {
-      // TODO: generate reset token + send email when mailer flow is implemented.
-    }
-
-    return { message: FORGOT_PASSWORD_GENERIC_MESSAGE };
+    return { message: RESET_REQUEST_GENERIC_MESSAGE };
   }
 }
