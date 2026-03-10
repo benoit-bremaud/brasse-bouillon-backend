@@ -1,10 +1,14 @@
 import { Injectable, UnauthorizedException } from '@nestjs/common';
 
-import { AuthResponseDto } from '../dtos/auth-response.dto';
 import { JwtService } from '@nestjs/jwt';
+import { UserService } from '../../user/services/user.service';
+import { AuthResponseDto } from '../dtos/auth-response.dto';
+import { ForgotPasswordResponseDto } from '../dtos/forgot-password-response.dto';
 import { LoginDto } from '../dtos/login.dto';
 import { PasswordService } from './password.service';
-import { UserService } from '../../user/services/user.service';
+
+const FORGOT_PASSWORD_GENERIC_MESSAGE =
+  'If an account exists for this email, a reset link has been sent.';
 
 /**
  * Auth Service
@@ -142,5 +146,23 @@ export class AuthService {
     // eslint-disable-next-line @typescript-eslint/no-unused-vars
     const { password_hash: _, ...result } = user;
     return result;
+  }
+
+  /**
+   * Request password reset
+   *
+   * Always returns the same message to avoid disclosing whether
+   * the email address exists in the system.
+   */
+  async requestPasswordReset(
+    email: string,
+  ): Promise<ForgotPasswordResponseDto> {
+    const user = await this.userService.findByEmail(email);
+
+    if (user && user.is_active) {
+      // TODO: generate reset token + send email when mailer flow is implemented.
+    }
+
+    return { message: FORGOT_PASSWORD_GENERIC_MESSAGE };
   }
 }

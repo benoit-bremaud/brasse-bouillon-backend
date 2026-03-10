@@ -1,17 +1,18 @@
 /* eslint-disable @typescript-eslint/unbound-method */
 import { Test, TestingModule } from '@nestjs/testing';
 
-import { AuthController } from './auth.controller';
-import { AuthResponseDto } from '../dtos/auth-response.dto';
-import { AuthService } from '../services/auth.service';
-import { ChangePasswordDto } from '../dtos/change-password.dto';
-import { CreateUserDto } from '../../user/dtos/create-user.dto';
-import { LoginDto } from '../dtos/login.dto';
 import { ThrottlerGuard } from '@nestjs/throttler';
+import { UserRole } from '../../common/enums/role.enum';
+import { CreateUserDto } from '../../user/dtos/create-user.dto';
 import { UpdateUserDto } from '../../user/dtos/update-user.dto';
 import { User } from '../../user/entities/user.entity';
-import { UserRole } from '../../common/enums/role.enum';
 import { UserService } from '../../user/services/user.service';
+import { AuthResponseDto } from '../dtos/auth-response.dto';
+import { ChangePasswordDto } from '../dtos/change-password.dto';
+import { ForgotPasswordDto } from '../dtos/forgot-password.dto';
+import { LoginDto } from '../dtos/login.dto';
+import { AuthService } from '../services/auth.service';
+import { AuthController } from './auth.controller';
 
 describe('AuthController', () => {
   let controller: AuthController;
@@ -46,6 +47,9 @@ describe('AuthController', () => {
     },
   };
 
+  const genericForgotPasswordMessage =
+    'If an account exists for this email, a reset link has been sent.';
+
   beforeEach(async () => {
     const moduleBuilder = Test.createTestingModule({
       controllers: [AuthController],
@@ -54,6 +58,7 @@ describe('AuthController', () => {
           provide: AuthService,
           useValue: {
             login: jest.fn(),
+            requestPasswordReset: jest.fn(),
           },
         },
         {
@@ -121,6 +126,25 @@ describe('AuthController', () => {
         password: dto.password,
       });
       expect(result).toEqual(authResponse);
+    });
+  });
+
+  describe('forgotPassword() - POST /auth/forgot-password', () => {
+    it('should call AuthService and return generic success message', async () => {
+      const dto: ForgotPasswordDto = {
+        email: mockUser.email,
+      };
+
+      jest.spyOn(authService, 'requestPasswordReset').mockResolvedValue({
+        message: genericForgotPasswordMessage,
+      });
+
+      const result = await controller.forgotPassword(dto);
+
+      expect(authService.requestPasswordReset).toHaveBeenCalledWith(dto.email);
+      expect(result).toEqual({
+        message: genericForgotPasswordMessage,
+      });
     });
   });
 
